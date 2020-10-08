@@ -1,0 +1,193 @@
+C51 COMPILER V9.00   CODE                                                                  09/20/2020 19:29:45 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE CODE
+OBJECT MODULE PLACED IN code.OBJ
+COMPILER INVOKED BY: C:\Program Files\Keil\C51\BIN\C51.EXE code.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include<stdio.h>
+   2          #include<reg51.h>
+   3          #define uint unsigned int
+   4          #define uchr unsigned char
+   5          #define TRUE 1
+   6          
+   7          sbit motor_switch = P0^0;
+   8          sbit speed_up     = P0^1;
+   9          sbit speed_down   = P0^2;
+  10          sbit CLR          = P0^3;
+  11          sbit REV          = P0^4; 
+  12          sbit ENA          = P2^0;
+  13          sbit in1          = P2^1;
+  14          sbit in2          = P2^2;
+  15          sbit work         = P2^3;
+  16          sbit fastest      = P2^4;
+  17          sbit slowest      = P2^5;
+  18          sbit reverse      = P2^6;
+  19          
+  20          uchr  speed_change = 10;
+  21          uchr  count        = 0;
+  22          uchr  PWM          = 20;
+  23          uchr  dig          = 2;
+  24          
+  25          uint code display[10] = {0X3F,0X06,0X5B,0X4F,0X66,
+  26                                   0X6D,0X7D,0X07,0X7F,0X6F};
+  27          
+  28          int delay(uint d_time);
+  29          void Timer_work();
+  30          void motor_control();
+  31          void dig_dplay();
+  32          
+  33          int main(){
+  34   1              P1      = 0;
+  35   1              P2  = 0;
+  36   1              in1 = 0;
+  37   1              in2 = 1;
+  38   1              ENA = 0;
+  39   1              work= 1;
+  40   1              fastest = 0;
+  41   1              slowest = 0;
+  42   1              reverse = 0;
+  43   1      
+  44   1              Timer_work();
+  45   1              while(TRUE){
+  46   2                      motor_control();
+  47   2                      dig_dplay();
+  48   2              }
+  49   1      }
+  50          
+  51          void Timer() interrupt 1{
+  52   1              TR0=0;
+  53   1              TH0=0Xfc;
+  54   1              TL0=0X66;
+  55   1      
+C51 COMPILER V9.00   CODE                                                                  09/20/2020 19:29:45 PAGE 2   
+
+  56   1              if(count<=PWM){
+  57   2                      ENA=1;
+  58   2              }
+  59   1              else
+  60   1                      ENA=0;
+  61   1              count++;
+  62   1      
+  63   1              if(count>=100){
+  64   2                      count=0;
+  65   2              }
+  66   1              TR0=1;
+  67   1      }
+  68          
+  69          int delay(uint d_time){
+  70   1              uint i,j;
+  71   1              for(i = d_time;i > 0;i--)
+  72   1                      for(j = 110;j > 0;j--);
+  73   1              return 0;
+  74   1      }
+  75          
+  76          void Timer_work(){
+  77   1              TMOD = 0X01;
+  78   1              TH0  = 0XFC;
+  79   1              TL0  = 0X66;
+  80   1              ET0  = 1;
+  81   1              TR0  = 1;
+  82   1              EA   = 1;
+  83   1      }
+  84          
+  85          void motor_control(){
+  86   1              if(motor_switch == 0){
+  87   2                      delay(2);       
+  88   2                      if(motor_switch == 0 && reverse == 0){
+  89   3                              in2 = ~in2;
+  90   3                              work= ~work;
+  91   3                      }
+  92   2                      if(motor_switch == 0 && reverse == 1){
+  93   3                              in1 = ~in1;
+  94   3                              work= ~work;
+  95   3                      }
+  96   2                      while(!motor_switch);
+  97   2              }
+  98   1      
+  99   1              if(speed_up == 0){
+ 100   2                      delay(2);
+ 101   2                      if(speed_up == 0){
+ 102   3                              PWM = PWM + speed_change;
+ 103   3                              dig = dig + 1;
+ 104   3                              fastest = 0;
+ 105   3                              slowest = 0;
+ 106   3                              work    = 1;
+ 107   3                          if(PWM >= 90){
+ 108   4                                      PWM = 90;
+ 109   4                                      dig = 9;
+ 110   4                                      fastest = 1;
+ 111   4                                      slowest = 0;
+ 112   4                              }
+ 113   3                              while(!speed_up);
+ 114   3                      }
+ 115   2                      
+ 116   2              }
+ 117   1      
+C51 COMPILER V9.00   CODE                                                                  09/20/2020 19:29:45 PAGE 3   
+
+ 118   1              if(speed_down == 0){
+ 119   2                      delay(2);
+ 120   2                      if(speed_down == 0){
+ 121   3                              if(PWM > 10){
+ 122   4                              PWM = PWM - speed_change;
+ 123   4                                      dig = dig - 1;
+ 124   4                                      slowest = 0;
+ 125   4                                      fastest = 0;
+ 126   4                      }
+ 127   3                      else{
+ 128   4                              PWM = 0;
+ 129   4                                      dig = 0;
+ 130   4                                      fastest = 0;
+ 131   4                                      slowest = 1;
+ 132   4                                      work = ~work;
+ 133   4                              }
+ 134   3                              while(!speed_down);
+ 135   3                      }
+ 136   2              }
+ 137   1      
+ 138   1              if(CLR == 0){
+ 139   2                      delay(2);       
+ 140   2                      if(CLR == 0){
+ 141   3                              dig = 2;
+ 142   3                              PWM = 20;
+ 143   3                              slowest = 0;
+ 144   3                              fastest = 0;
+ 145   3                              work    = 1;
+ 146   3                              in1     = 0;
+ 147   3                              in2     = 1;
+ 148   3                              reverse = 0;
+ 149   3                      }
+ 150   2                      while(!CLR);
+ 151   2              }
+ 152   1      
+ 153   1              if(REV == 0){
+ 154   2                      delay(2);       
+ 155   2                      if(REV == 0){
+ 156   3                              in1 = ~in1;
+ 157   3                              in2 = ~in2;
+ 158   3                              reverse = ~reverse;
+ 159   3                      }
+ 160   2                      while(!REV);
+ 161   2              }
+ 162   1      }
+ 163          
+ 164          void dig_dplay(){
+ 165   1              P1 = display[dig];
+ 166   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    309    ----
+   CONSTANT SIZE    =     20    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      4    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
